@@ -280,148 +280,8 @@ PUGI__NS_BEGIN
 	};
 PUGI__NS_END
 
-#ifdef PUGIXML_COMPACT
 PUGI__NS_BEGIN
-	class compact_hash_table
-	{
-	public:
-		compact_hash_table(): _items(0), _capacity(0), _count(0)
-		{
-		}
-
-		void clear()
-		{
-			if (_items)
-			{
-				xml_memory::deallocate(_items);
-				_items = 0;
-				_capacity = 0;
-				_count = 0;
-			}
-		}
-
-		void* find(const void* key)
-		{
-			if (_capacity == 0) return 0;
-
-			item_t* item = get_item(key);
-			assert(item);
-			assert(item->key == key || (item->key == 0 && item->value == 0));
-
-			return item->value;
-		}
-
-		void insert(const void* key, void* value)
-		{
-			assert(_capacity != 0 && _count < _capacity - _capacity / 4);
-
-			item_t* item = get_item(key);
-			assert(item);
-
-			if (item->key == 0)
-			{
-				_count++;
-				item->key = key;
-			}
-
-			item->value = value;
-		}
-
-		bool reserve()
-		{
-			if (_count + 16 >= _capacity - _capacity / 4)
-				return rehash();
-
-			return true;
-		}
-
-	private:
-		struct item_t
-		{
-			const void* key;
-			void* value;
-		};
-
-		item_t* _items;
-		size_t _capacity;
-
-		size_t _count;
-
-		bool rehash();
-
-		item_t* get_item(const void* key)
-		{
-			assert(key);
-			assert(_capacity > 0);
-
-			size_t hashmod = _capacity - 1;
-			size_t bucket = hash(key) & hashmod;
-
-			for (size_t probe = 0; probe <= hashmod; ++probe)
-			{
-				item_t& probe_item = _items[bucket];
-
-				if (probe_item.key == key || probe_item.key == 0)
-					return &probe_item;
-
-				// hash collision, quadratic probing
-				bucket = (bucket + probe + 1) & hashmod;
-			}
-
-			assert(false && "Hash table is full"); // unreachable
-			return 0;
-		}
-
-		static PUGI__UNSIGNED_OVERFLOW unsigned int hash(const void* key)
-		{
-			unsigned int h = static_cast<unsigned int>(reinterpret_cast<uintptr_t>(key));
-
-			// MurmurHash3 32-bit finalizer
-			h ^= h >> 16;
-			h *= 0x85ebca6bu;
-			h ^= h >> 13;
-			h *= 0xc2b2ae35u;
-			h ^= h >> 16;
-
-			return h;
-		}
-	};
-
-	PUGI__FN_NO_INLINE bool compact_hash_table::rehash()
-	{
-		compact_hash_table rt;
-		rt._capacity = (_capacity == 0) ? 32 : _capacity * 2;
-		rt._items = static_cast<item_t*>(xml_memory::allocate(sizeof(item_t) * rt._capacity));
-
-		if (!rt._items)
-			return false;
-
-		memset(rt._items, 0, sizeof(item_t) * rt._capacity);
-
-		for (size_t i = 0; i < _capacity; ++i)
-			if (_items[i].key)
-				rt.insert(_items[i].key, _items[i].value);
-
-		if (_items)
-			xml_memory::deallocate(_items);
-
-		_capacity = rt._capacity;
-		_items = rt._items;
-
-		assert(_count == rt._count);
-
-		return true;
-	}
-
-PUGI__NS_END
-#endif
-
-PUGI__NS_BEGIN
-#ifdef PUGIXML_COMPACT
-	static const uintptr_t xml_memory_block_alignment = 4;
-#else
 	static const uintptr_t xml_memory_block_alignment = sizeof(void*);
-#endif
 
 	// extra metadata bits
 	static const uintptr_t xml_memory_page_contents_shared_mask = 64;
@@ -433,14 +293,9 @@ PUGI__NS_BEGIN
 	static const uintptr_t xml_memory_page_name_allocated_or_shared_mask = xml_memory_page_name_allocated_mask | xml_memory_page_contents_shared_mask;
 	static const uintptr_t xml_memory_page_value_allocated_or_shared_mask = xml_memory_page_value_allocated_mask | xml_memory_page_contents_shared_mask;
 
-#ifdef PUGIXML_COMPACT
-	#define PUGI__GETHEADER_IMPL(object, page, flags) // unused
-	#define PUGI__GETPAGE_IMPL(header) (header).get_page()
-#else
 	#define PUGI__GETHEADER_IMPL(object, page, flags) (((reinterpret_cast<char*>(object) - reinterpret_cast<char*>(page)) << 8) | (flags))
 	// this macro casts pointers through void* to avoid 'cast increases required alignment of target type' warnings
 	#define PUGI__GETPAGE_IMPL(header) static_cast<impl::xml_memory_page*>(const_cast<void*>(static_cast<const void*>(reinterpret_cast<const char*>(&header) - (header >> 8))))
-#endif
 
 	#define PUGI__GETPAGE(n) PUGI__GETPAGE_IMPL((n)->header)
 	#define PUGI__NODETYPE(n) static_cast<xml_node_type>((n)->header & impl::xml_memory_page_type_mask)
@@ -459,12 +314,6 @@ PUGI__NS_BEGIN
 			result->busy_size = 0;
 			result->freed_size = 0;
 
-		#ifdef PUGIXML_COMPACT
-			result->compact_string_base = 0;
-			result->compact_shared_parent = 0;
-			result->compact_page_marker = 0;
-		#endif
-
 			return result;
 		}
 
@@ -476,11 +325,6 @@ PUGI__NS_BEGIN
 		size_t busy_size;
 		size_t freed_size;
 
-	#ifdef PUGIXML_COMPACT
-		char_t* compact_string_base;
-		void* compact_shared_parent;
-		uint32_t* compact_page_marker;
-	#endif
 	};
 
 	static const size_t xml_memory_page_size =
@@ -501,9 +345,6 @@ PUGI__NS_BEGIN
 	{
 		xml_allocator(xml_memory_page* root): _root(root), _busy_size(root->busy_size)
 		{
-		#ifdef PUGIXML_COMPACT
-			_hash = 0;
-		#endif
 		}
 
 		xml_memory_page* allocate_page(size_t data_size)
@@ -544,43 +385,10 @@ PUGI__NS_BEGIN
 			return buf;
 		}
 
-	#ifdef PUGIXML_COMPACT
-		void* allocate_object(size_t size, xml_memory_page*& out_page)
-		{
-			void* result = allocate_memory(size + sizeof(uint32_t), out_page);
-			if (!result) return 0;
-
-			// adjust for marker
-			ptrdiff_t offset = static_cast<char*>(result) - reinterpret_cast<char*>(out_page->compact_page_marker);
-
-			if (PUGI__UNLIKELY(static_cast<uintptr_t>(offset) >= 256 * xml_memory_block_alignment))
-			{
-				// insert new marker
-				uint32_t* marker = static_cast<uint32_t*>(result);
-
-				*marker = static_cast<uint32_t>(reinterpret_cast<char*>(marker) - reinterpret_cast<char*>(out_page));
-				out_page->compact_page_marker = marker;
-
-				// since we don't reuse the page space until we reallocate it, we can just pretend that we freed the marker block
-				// this will make sure deallocate_memory correctly tracks the size
-				out_page->freed_size += sizeof(uint32_t);
-
-				return marker + 1;
-			}
-			else
-			{
-				// roll back uint32_t part
-				_busy_size -= sizeof(uint32_t);
-
-				return result;
-			}
-		}
-	#else
 		void* allocate_object(size_t size, xml_memory_page*& out_page)
 		{
 			return allocate_memory(size, out_page);
 		}
-	#endif
 
 		void deallocate_memory(void* ptr, size_t size, xml_memory_page* page)
 		{
@@ -601,13 +409,6 @@ PUGI__NS_BEGIN
 					// top page freed, just reset sizes
 					page->busy_size = 0;
 					page->freed_size = 0;
-
-				#ifdef PUGIXML_COMPACT
-					// reset compact state to maximize efficiency
-					page->compact_string_base = 0;
-					page->compact_shared_parent = 0;
-					page->compact_page_marker = 0;
-				#endif
 
 					_busy_size = 0;
 				}
@@ -681,19 +482,11 @@ PUGI__NS_BEGIN
 
 		bool reserve()
 		{
-		#ifdef PUGIXML_COMPACT
-			return _hash->reserve();
-		#else
 			return true;
-		#endif
 		}
 
 		xml_memory_page* _root;
 		size_t _busy_size;
-
-	#ifdef PUGIXML_COMPACT
-		compact_hash_table* _hash;
-	#endif
 	};
 
 	PUGI__FN_NO_INLINE void* xml_allocator::allocate_memory_oob(size_t size, xml_memory_page*& out_page)
@@ -735,352 +528,6 @@ PUGI__NS_BEGIN
 	}
 PUGI__NS_END
 
-#ifdef PUGIXML_COMPACT
-PUGI__NS_BEGIN
-	static const uintptr_t compact_alignment_log2 = 2;
-	static const uintptr_t compact_alignment = 1 << compact_alignment_log2;
-
-	class compact_header
-	{
-	public:
-		compact_header(xml_memory_page* page, unsigned int flags)
-		{
-			PUGI__STATIC_ASSERT(xml_memory_block_alignment == compact_alignment);
-
-			ptrdiff_t offset = (reinterpret_cast<char*>(this) - reinterpret_cast<char*>(page->compact_page_marker));
-			assert(offset % compact_alignment == 0 && static_cast<uintptr_t>(offset) < 256 * compact_alignment);
-
-			_page = static_cast<unsigned char>(offset >> compact_alignment_log2);
-			_flags = static_cast<unsigned char>(flags);
-		}
-
-		void operator&=(uintptr_t mod)
-		{
-			_flags &= static_cast<unsigned char>(mod);
-		}
-
-		void operator|=(uintptr_t mod)
-		{
-			_flags |= static_cast<unsigned char>(mod);
-		}
-
-		uintptr_t operator&(uintptr_t mod) const
-		{
-			return _flags & mod;
-		}
-
-		xml_memory_page* get_page() const
-		{
-			// round-trip through void* to silence 'cast increases required alignment of target type' warnings
-			const char* page_marker = reinterpret_cast<const char*>(this) - (_page << compact_alignment_log2);
-			const char* page = page_marker - *reinterpret_cast<const uint32_t*>(static_cast<const void*>(page_marker));
-
-			return const_cast<xml_memory_page*>(reinterpret_cast<const xml_memory_page*>(static_cast<const void*>(page)));
-		}
-
-	private:
-		unsigned char _page;
-		unsigned char _flags;
-	};
-
-	PUGI__FN xml_memory_page* compact_get_page(const void* object, int header_offset)
-	{
-		const compact_header* header = reinterpret_cast<const compact_header*>(static_cast<const char*>(object) - header_offset);
-
-		return header->get_page();
-	}
-
-	template <int header_offset, typename T> PUGI__FN_NO_INLINE T* compact_get_value(const void* object)
-	{
-		return static_cast<T*>(compact_get_page(object, header_offset)->allocator->_hash->find(object));
-	}
-
-	template <int header_offset, typename T> PUGI__FN_NO_INLINE void compact_set_value(const void* object, T* value)
-	{
-		compact_get_page(object, header_offset)->allocator->_hash->insert(object, value);
-	}
-
-	template <typename T, int header_offset, int start = -126> class compact_pointer
-	{
-	public:
-		compact_pointer(): _data(0)
-		{
-		}
-
-		void operator=(const compact_pointer& rhs)
-		{
-			*this = rhs + 0;
-		}
-
-		void operator=(T* value)
-		{
-			if (value)
-			{
-				// value is guaranteed to be compact-aligned; 'this' is not
-				// our decoding is based on 'this' aligned to compact alignment downwards (see operator T*)
-				// so for negative offsets (e.g. -3) we need to adjust the diff by compact_alignment - 1 to
-				// compensate for arithmetic shift rounding for negative values
-				ptrdiff_t diff = reinterpret_cast<char*>(value) - reinterpret_cast<char*>(this);
-				ptrdiff_t offset = ((diff + int(compact_alignment - 1)) >> compact_alignment_log2) - start;
-
-				if (static_cast<uintptr_t>(offset) <= 253)
-					_data = static_cast<unsigned char>(offset + 1);
-				else
-				{
-					compact_set_value<header_offset>(this, value);
-
-					_data = 255;
-				}
-			}
-			else
-				_data = 0;
-		}
-
-		operator T*() const
-		{
-			if (_data)
-			{
-				if (_data < 255)
-				{
-					uintptr_t base = reinterpret_cast<uintptr_t>(this) & ~(compact_alignment - 1);
-
-					return reinterpret_cast<T*>(base + ((_data - 1 + start) << compact_alignment_log2));
-				}
-				else
-					return compact_get_value<header_offset, T>(this);
-			}
-			else
-				return 0;
-		}
-
-		T* operator->() const
-		{
-			return *this;
-		}
-
-	private:
-		unsigned char _data;
-	};
-
-	template <typename T, int header_offset> class compact_pointer_parent
-	{
-	public:
-		compact_pointer_parent(): _data(0)
-		{
-		}
-
-		void operator=(const compact_pointer_parent& rhs)
-		{
-			*this = rhs + 0;
-		}
-
-		void operator=(T* value)
-		{
-			if (value)
-			{
-				// value is guaranteed to be compact-aligned; 'this' is not
-				// our decoding is based on 'this' aligned to compact alignment downwards (see operator T*)
-				// so for negative offsets (e.g. -3) we need to adjust the diff by compact_alignment - 1 to
-				// compensate for arithmetic shift behavior for negative values
-				ptrdiff_t diff = reinterpret_cast<char*>(value) - reinterpret_cast<char*>(this);
-				ptrdiff_t offset = ((diff + int(compact_alignment - 1)) >> compact_alignment_log2) + 65533;
-
-				if (static_cast<uintptr_t>(offset) <= 65533)
-				{
-					_data = static_cast<unsigned short>(offset + 1);
-				}
-				else
-				{
-					xml_memory_page* page = compact_get_page(this, header_offset);
-
-					if (PUGI__UNLIKELY(page->compact_shared_parent == 0))
-						page->compact_shared_parent = value;
-
-					if (page->compact_shared_parent == value)
-					{
-						_data = 65534;
-					}
-					else
-					{
-						compact_set_value<header_offset>(this, value);
-
-						_data = 65535;
-					}
-				}
-			}
-			else
-			{
-				_data = 0;
-			}
-		}
-
-		operator T*() const
-		{
-			if (_data)
-			{
-				if (_data < 65534)
-				{
-					uintptr_t base = reinterpret_cast<uintptr_t>(this) & ~(compact_alignment - 1);
-
-					return reinterpret_cast<T*>(base + ((_data - 1 - 65533) << compact_alignment_log2));
-				}
-				else if (_data == 65534)
-					return static_cast<T*>(compact_get_page(this, header_offset)->compact_shared_parent);
-				else
-					return compact_get_value<header_offset, T>(this);
-			}
-			else
-				return 0;
-		}
-
-		T* operator->() const
-		{
-			return *this;
-		}
-
-	private:
-		uint16_t _data;
-	};
-
-	template <int header_offset, int base_offset> class compact_string
-	{
-	public:
-		compact_string(): _data(0)
-		{
-		}
-
-		void operator=(const compact_string& rhs)
-		{
-			*this = rhs + 0;
-		}
-
-		void operator=(char_t* value)
-		{
-			if (value)
-			{
-				xml_memory_page* page = compact_get_page(this, header_offset);
-
-				if (PUGI__UNLIKELY(page->compact_string_base == 0))
-					page->compact_string_base = value;
-
-				ptrdiff_t offset = value - page->compact_string_base;
-
-				if (static_cast<uintptr_t>(offset) < (65535 << 7))
-				{
-					// round-trip through void* to silence 'cast increases required alignment of target type' warnings
-					uint16_t* base = reinterpret_cast<uint16_t*>(static_cast<void*>(reinterpret_cast<char*>(this) - base_offset));
-
-					if (*base == 0)
-					{
-						*base = static_cast<uint16_t>((offset >> 7) + 1);
-						_data = static_cast<unsigned char>((offset & 127) + 1);
-					}
-					else
-					{
-						ptrdiff_t remainder = offset - ((*base - 1) << 7);
-
-						if (static_cast<uintptr_t>(remainder) <= 253)
-						{
-							_data = static_cast<unsigned char>(remainder + 1);
-						}
-						else
-						{
-							compact_set_value<header_offset>(this, value);
-
-							_data = 255;
-						}
-					}
-				}
-				else
-				{
-					compact_set_value<header_offset>(this, value);
-
-					_data = 255;
-				}
-			}
-			else
-			{
-				_data = 0;
-			}
-		}
-
-		operator char_t*() const
-		{
-			if (_data)
-			{
-				if (_data < 255)
-				{
-					xml_memory_page* page = compact_get_page(this, header_offset);
-
-					// round-trip through void* to silence 'cast increases required alignment of target type' warnings
-					const uint16_t* base = reinterpret_cast<const uint16_t*>(static_cast<const void*>(reinterpret_cast<const char*>(this) - base_offset));
-					assert(*base);
-
-					ptrdiff_t offset = ((*base - 1) << 7) + (_data - 1);
-
-					return page->compact_string_base + offset;
-				}
-				else
-				{
-					return compact_get_value<header_offset, char_t>(this);
-				}
-			}
-			else
-				return 0;
-		}
-
-	private:
-		unsigned char _data;
-	};
-PUGI__NS_END
-#endif
-
-#ifdef PUGIXML_COMPACT
-namespace pugi
-{
-	struct xml_attribute_struct
-	{
-		xml_attribute_struct(impl::xml_memory_page* page): header(page, 0), namevalue_base(0)
-		{
-			PUGI__STATIC_ASSERT(sizeof(xml_attribute_struct) == 8);
-		}
-
-		impl::compact_header header;
-
-		uint16_t namevalue_base;
-
-		impl::compact_string<4, 2> name;
-		impl::compact_string<5, 3> value;
-
-		impl::compact_pointer<xml_attribute_struct, 6> prev_attribute_c;
-		impl::compact_pointer<xml_attribute_struct, 7, 0> next_attribute;
-	};
-
-	struct xml_node_struct
-	{
-		xml_node_struct(impl::xml_memory_page* page, xml_node_type type): header(page, type), namevalue_base(0)
-		{
-			PUGI__STATIC_ASSERT(sizeof(xml_node_struct) == 12);
-		}
-
-		impl::compact_header header;
-
-		uint16_t namevalue_base;
-
-		impl::compact_string<4, 2> name;
-		impl::compact_string<5, 3> value;
-
-		impl::compact_pointer_parent<xml_node_struct, 6> parent;
-
-		impl::compact_pointer<xml_node_struct, 8, 0> first_child;
-
-		impl::compact_pointer<xml_node_struct,  9>    prev_sibling_c;
-		impl::compact_pointer<xml_node_struct, 10, 0> next_sibling;
-
-		impl::compact_pointer<xml_attribute_struct, 11, 0> first_attribute;
-	};
-}
-#else
 namespace pugi
 {
 	struct xml_attribute_struct
@@ -1121,7 +568,6 @@ namespace pugi
 		xml_attribute_struct* first_attribute;
 	};
 }
-#endif
 
 PUGI__NS_BEGIN
 	struct xml_extra_buffer
@@ -1139,10 +585,6 @@ PUGI__NS_BEGIN
 		const char_t* buffer;
 
 		xml_extra_buffer* extra_buffers;
-
-	#ifdef PUGIXML_COMPACT
-		compact_hash_table hash;
-	#endif
 	};
 
 	template <typename Object> inline xml_allocator& get_allocator(const Object* object)
@@ -6848,11 +6290,7 @@ namespace pugi
 	{
 		assert(!_root);
 
-	#ifdef PUGIXML_COMPACT
-		const size_t page_offset = sizeof(uint32_t);
-	#else
 		const size_t page_offset = 0;
-	#endif
 
 		// initialize sentinel page
 		PUGI__STATIC_ASSERT(sizeof(impl::xml_memory_page) + sizeof(impl::xml_document_struct) + page_offset <= sizeof(_memory));
@@ -6863,24 +6301,12 @@ namespace pugi
 
 		page->busy_size = impl::xml_memory_page_size;
 
-		// setup first page marker
-	#ifdef PUGIXML_COMPACT
-		// round-trip through void* to avoid 'cast increases required alignment of target type' warning
-		page->compact_page_marker = reinterpret_cast<uint32_t*>(static_cast<void*>(reinterpret_cast<char*>(page) + sizeof(impl::xml_memory_page)));
-		*page->compact_page_marker = sizeof(impl::xml_memory_page);
-	#endif
-
 		// allocate new root
 		_root = new (reinterpret_cast<char*>(page) + sizeof(impl::xml_memory_page) + page_offset) impl::xml_document_struct(page);
 		_root->prev_sibling_c = _root;
 
 		// setup sentinel page
 		page->allocator = static_cast<impl::xml_document_struct*>(_root);
-
-		// setup hash table pointer in allocator
-	#ifdef PUGIXML_COMPACT
-		page->allocator->_hash = &static_cast<impl::xml_document_struct*>(_root)->hash;
-	#endif
 
 		// verify the document allocation
 		assert(reinterpret_cast<char*>(_root) + sizeof(impl::xml_document_struct) <= _memory + sizeof(_memory));
@@ -6916,11 +6342,6 @@ namespace pugi
 
 			page = next;
 		}
-
-	#ifdef PUGIXML_COMPACT
-		// destroy hash table
-		static_cast<impl::xml_document_struct*>(_root)->hash.clear();
-	#endif
 
 		_root = 0;
 	}
