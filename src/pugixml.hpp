@@ -371,39 +371,6 @@ namespace pugi
 		// Get attribute value as bool (returns true if first character is in '1tTyY' set), or the default value if attribute is empty
 		bool as_bool(bool def = false) const;
 
-		// Set attribute name/value (returns false if attribute is empty or there is not enough memory)
-		bool set_name(const char_t* rhs);
-		bool set_value(const char_t* rhs);
-
-		// Set attribute value with type conversion (numbers are converted to strings, boolean is converted to "true"/"false")
-		bool set_value(int rhs);
-		bool set_value(unsigned int rhs);
-		bool set_value(long rhs);
-		bool set_value(unsigned long rhs);
-		bool set_value(double rhs);
-		bool set_value(float rhs);
-		bool set_value(bool rhs);
-
-	#ifdef PUGIXML_HAS_LONG_LONG
-		bool set_value(long long rhs);
-		bool set_value(unsigned long long rhs);
-	#endif
-
-		// Set attribute value (equivalent to set_value without error checking)
-		xml_attribute& operator=(const char_t* rhs);
-		xml_attribute& operator=(int rhs);
-		xml_attribute& operator=(unsigned int rhs);
-		xml_attribute& operator=(long rhs);
-		xml_attribute& operator=(unsigned long rhs);
-		xml_attribute& operator=(double rhs);
-		xml_attribute& operator=(float rhs);
-		xml_attribute& operator=(bool rhs);
-
-	#ifdef PUGIXML_HAS_LONG_LONG
-		xml_attribute& operator=(long long rhs);
-		xml_attribute& operator=(unsigned long long rhs);
-	#endif
-
 		// Get next/previous attribute in the attribute list of the parent node
 		xml_attribute next_attribute() const;
 		xml_attribute previous_attribute() const;
@@ -502,59 +469,6 @@ namespace pugi
 
 		// Get child value of child with specified name. Equivalent to child(name).child_value().
 		const char_t* child_value(const char_t* name) const;
-
-		// Set node name/value (returns false if node is empty, there is not enough memory, or node can not have name/value)
-		bool set_name(const char_t* rhs);
-		bool set_value(const char_t* rhs);
-
-		// Add attribute with specified name. Returns added attribute, or empty attribute on errors.
-		xml_attribute append_attribute(const char_t* name);
-		xml_attribute prepend_attribute(const char_t* name);
-		xml_attribute insert_attribute_after(const char_t* name, const xml_attribute& attr);
-		xml_attribute insert_attribute_before(const char_t* name, const xml_attribute& attr);
-
-		// Add a copy of the specified attribute. Returns added attribute, or empty attribute on errors.
-		xml_attribute append_copy(const xml_attribute& proto);
-		xml_attribute prepend_copy(const xml_attribute& proto);
-		xml_attribute insert_copy_after(const xml_attribute& proto, const xml_attribute& attr);
-		xml_attribute insert_copy_before(const xml_attribute& proto, const xml_attribute& attr);
-
-		// Add child node with specified type. Returns added node, or empty node on errors.
-		xml_node append_child(xml_node_type type = node_element);
-		xml_node prepend_child(xml_node_type type = node_element);
-		xml_node insert_child_after(xml_node_type type, const xml_node& node);
-		xml_node insert_child_before(xml_node_type type, const xml_node& node);
-
-		// Add child element with specified name. Returns added node, or empty node on errors.
-		xml_node append_child(const char_t* name);
-		xml_node prepend_child(const char_t* name);
-		xml_node insert_child_after(const char_t* name, const xml_node& node);
-		xml_node insert_child_before(const char_t* name, const xml_node& node);
-
-		// Add a copy of the specified node as a child. Returns added node, or empty node on errors.
-		xml_node append_copy(const xml_node& proto);
-		xml_node prepend_copy(const xml_node& proto);
-		xml_node insert_copy_after(const xml_node& proto, const xml_node& node);
-		xml_node insert_copy_before(const xml_node& proto, const xml_node& node);
-
-		// Move the specified node to become a child of this node. Returns moved node, or empty node on errors.
-		xml_node append_move(const xml_node& moved);
-		xml_node prepend_move(const xml_node& moved);
-		xml_node insert_move_after(const xml_node& moved, const xml_node& node);
-		xml_node insert_move_before(const xml_node& moved, const xml_node& node);
-
-		// Remove specified attribute
-		bool remove_attribute(const xml_attribute& a);
-		bool remove_attribute(const char_t* name);
-
-		// Remove specified child
-		bool remove_child(const xml_node& n);
-		bool remove_child(const char_t* name);
-
-		// Parses buffer as an XML document fragment and appends all nodes as children of the current node.
-		// Copies/converts the buffer, so it may be deleted or changed after the function returns.
-		// Note: append_buffer allocates memory that has the lifetime of the owning document; removing the appended nodes does not immediately reclaim that memory.
-		xml_parse_result append_buffer(const void* contents, size_t size, unsigned int options = parse_default, xml_encoding encoding = encoding_auto);
 
 		// Find attribute using predicate. Returns first attribute for which predicate returned true.
 		template <typename Predicate> xml_attribute find_attribute(Predicate pred) const
@@ -657,9 +571,6 @@ namespace pugi
 		xml_object_range<xml_named_node_iterator> children(const char_t* name) const;
 		xml_object_range<xml_attribute_iterator> attributes() const;
 
-		// Get node offset in parsed file/string (in char_t units) for debugging purposes
-		ptrdiff_t offset_debug() const;
-
 		// Get hash value (unique for handles to the same object)
 		size_t hash_value() const;
 
@@ -684,7 +595,6 @@ namespace pugi
 
 		explicit xml_text(xml_node_struct* root);
 
-		xml_node_struct* _data_new();
 		xml_node_struct* _data() const;
 
 	public:
@@ -719,38 +629,6 @@ namespace pugi
 
 		// Get text as bool (returns true if first character is in '1tTyY' set), or the default value if object is empty
 		bool as_bool(bool def = false) const;
-
-		// Set text (returns false if object is empty or there is not enough memory)
-		bool set(const char_t* rhs);
-
-		// Set text with type conversion (numbers are converted to strings, boolean is converted to "true"/"false")
-		bool set(int rhs);
-		bool set(unsigned int rhs);
-		bool set(long rhs);
-		bool set(unsigned long rhs);
-		bool set(double rhs);
-		bool set(float rhs);
-		bool set(bool rhs);
-
-	#ifdef PUGIXML_HAS_LONG_LONG
-		bool set(long long rhs);
-		bool set(unsigned long long rhs);
-	#endif
-
-		// Set text (equivalent to set without error checking)
-		xml_text& operator=(const char_t* rhs);
-		xml_text& operator=(int rhs);
-		xml_text& operator=(unsigned int rhs);
-		xml_text& operator=(long rhs);
-		xml_text& operator=(unsigned long rhs);
-		xml_text& operator=(double rhs);
-		xml_text& operator=(float rhs);
-		xml_text& operator=(bool rhs);
-
-	#ifdef PUGIXML_HAS_LONG_LONG
-		xml_text& operator=(long long rhs);
-		xml_text& operator=(unsigned long long rhs);
-	#endif
 
 		// Get the data node (node_pcdata or node_cdata) for this object
 		xml_node data() const;
@@ -972,52 +850,12 @@ namespace pugi
 
 		char _memory[192];
 
-		// Non-copyable semantics
-		xml_document(const xml_document&);
-		xml_document& operator=(const xml_document&);
-
-		void _create();
-		void _destroy();
-
 	public:
 		// Default constructor, makes empty document
 		xml_document();
 
 		// Destructor, invalidates all node/attribute handles to this document
 		~xml_document();
-
-		// Removes all nodes, leaving the empty document
-		void reset();
-
-		// Removes all nodes, then copies the entire contents of the specified document
-		void reset(const xml_document& proto);
-
-	#ifndef PUGIXML_NO_STL
-		// Load document from stream.
-		xml_parse_result load(std::basic_istream<char, std::char_traits<char> >& stream, unsigned int options = parse_default, xml_encoding encoding = encoding_auto);
-		xml_parse_result load(std::basic_istream<wchar_t, std::char_traits<wchar_t> >& stream, unsigned int options = parse_default);
-	#endif
-
-		// (deprecated: use load_string instead) Load document from zero-terminated string. No encoding conversions are applied.
-		PUGIXML_DEPRECATED xml_parse_result load(const char_t* contents, unsigned int options = parse_default);
-
-		// Load document from zero-terminated string. No encoding conversions are applied.
-		xml_parse_result load_string(const char_t* contents, unsigned int options = parse_default);
-
-		// Load document from file
-		xml_parse_result load_file(const char* path, unsigned int options = parse_default, xml_encoding encoding = encoding_auto);
-		xml_parse_result load_file(const wchar_t* path, unsigned int options = parse_default, xml_encoding encoding = encoding_auto);
-
-		// Load document from buffer. Copies/converts the buffer, so it may be deleted or changed after the function returns.
-		xml_parse_result load_buffer(const void* contents, size_t size, unsigned int options = parse_default, xml_encoding encoding = encoding_auto);
-
-		// Load document from buffer, using the buffer for in-place parsing (the buffer is modified and used for storage of document data).
-		// You should ensure that buffer data will persist throughout the document's lifetime, and free the buffer memory manually once document is destroyed.
-		xml_parse_result load_buffer_inplace(void* contents, size_t size, unsigned int options = parse_default, xml_encoding encoding = encoding_auto);
-
-		// Load document from buffer, using the buffer for in-place parsing (the buffer is modified and used for storage of document data).
-		// You should allocate the buffer with pugixml allocation function; document will free the buffer when it is no longer needed (you can't use it anymore).
-		xml_parse_result load_buffer_inplace_own(void* contents, size_t size, unsigned int options = parse_default, xml_encoding encoding = encoding_auto);
 
 		// Save XML document to writer (semantics is slightly different from xml_node::print, see documentation for details).
 		void save(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, xml_encoding encoding = encoding_auto) const;
@@ -1347,16 +1185,6 @@ namespace pugi
 		void _assign(const_iterator begin, const_iterator end, type_t type);
 		void _move(xpath_node_set& rhs);
 	};
-
-#ifndef PUGIXML_NO_STL
-	// Convert wide string to UTF8
-	std::basic_string<char, std::char_traits<char>, std::allocator<char> > PUGIXML_FUNCTION as_utf8(const wchar_t* str);
-	std::basic_string<char, std::char_traits<char>, std::allocator<char> > PUGIXML_FUNCTION as_utf8(const std::basic_string<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> >& str);
-
-	// Convert UTF8 to wide string
-	std::basic_string<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > PUGIXML_FUNCTION as_wide(const char* str);
-	std::basic_string<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > PUGIXML_FUNCTION as_wide(const std::basic_string<char, std::char_traits<char>, std::allocator<char> >& str);
-#endif
 
 	// Memory allocation function interface; returns pointer to allocated memory or NULL on failure
 	typedef void* (*allocation_function)(size_t size);
