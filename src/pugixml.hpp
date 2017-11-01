@@ -26,7 +26,7 @@
 #include <stddef.h>
 
 // Include exception header for XPath
-#if !defined(PUGIXML_NO_XPATH) && !defined(PUGIXML_NO_EXCEPTIONS)
+#ifndef PUGIXML_NO_EXCEPTIONS
 #	include <exception>
 #endif
 
@@ -252,12 +252,10 @@ namespace pugi
 
 	class xml_text;
 
-	#ifndef PUGIXML_NO_XPATH
 	class xpath_node;
 	class xpath_node_set;
 	class xpath_query;
 	class xpath_variable_set;
-	#endif
 
 	// Range-based for loop support
 	template <typename It> class xml_object_range
@@ -621,7 +619,6 @@ namespace pugi
 		// Recursively traverse subtree with xml_tree_walker
 		bool traverse(xml_tree_walker& walker);
 
-	#ifndef PUGIXML_NO_XPATH
 		// Select single node by evaluating XPath query. Returns first node from the resulting node set.
 		xpath_node select_node(const char_t* query, xpath_variable_set* variables = 0) const;
 		xpath_node select_node(const xpath_query& query) const;
@@ -633,8 +630,6 @@ namespace pugi
 		// (deprecated: use select_node instead) Select single node by evaluating XPath query.
 		PUGIXML_DEPRECATED xpath_node select_single_node(const char_t* query, xpath_variable_set* variables = 0) const;
 		PUGIXML_DEPRECATED xpath_node select_single_node(const xpath_query& query) const;
-
-	#endif
 
 		// Print subtree using a writer object
 		void print(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, xml_encoding encoding = encoding_auto, unsigned int depth = 0) const;
@@ -1041,7 +1036,6 @@ namespace pugi
 		xml_node document_element() const;
 	};
 
-#ifndef PUGIXML_NO_XPATH
 	// XPath query return type
 	enum xpath_value_type
 	{
@@ -1353,7 +1347,6 @@ namespace pugi
 		void _assign(const_iterator begin, const_iterator end, type_t type);
 		void _move(xpath_node_set& rhs);
 	};
-#endif
 
 #ifndef PUGIXML_NO_STL
 	// Convert wide string to UTF8

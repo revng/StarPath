@@ -26,10 +26,8 @@
 #	include <wchar.h>
 #endif
 
-#ifndef PUGIXML_NO_XPATH
-#	include <math.h>
-#	include <float.h>
-#endif
+#include <math.h>
+#include <float.h>
 
 #ifndef PUGIXML_NO_STL
 #	include <istream>
@@ -6576,7 +6574,6 @@ namespace std
 }
 #endif
 
-#ifndef PUGIXML_NO_XPATH
 // STL replacements
 PUGI__NS_BEGIN
 	struct equal_to
@@ -12007,8 +12004,6 @@ namespace pugi
 		return query.evaluate_node(*this);
 	}
 }
-
-#endif
 
 #ifdef __BORLANDC__
 #	pragma option pop
