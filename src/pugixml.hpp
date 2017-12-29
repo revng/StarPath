@@ -315,6 +315,125 @@ namespace pugi
 	};
 	#endif
 
+	struct xml_attribute_struct
+	{
+		xml_attribute_struct(): name(0), value(0), prev_attribute_c(0), next_attribute(0)
+		{
+		}
+
+		char_t*	name;
+		char_t*	value;
+
+		xml_attribute_struct* prev_attribute_c;
+		xml_attribute_struct* next_attribute;
+	};
+
+	struct xml_node_struct
+	{
+		xml_node_struct(xml_node_type type): type(type), name(0), value(0), parent(0), first_child(0), prev_sibling_c(0), next_sibling(0), first_attribute(0), root(0)
+		{
+		}
+
+		xml_node_type type;
+		char_t* name;
+		char_t* value;
+
+		xml_node_struct* parent;
+
+		xml_node_struct* first_child;
+
+		xml_node_struct* prev_sibling_c;
+		xml_node_struct* next_sibling;
+
+		xml_attribute_struct* first_attribute;
+
+		xml_node_struct* root;
+	};
+
+	class xml_attribute_struct_ref {
+	public:
+		xml_attribute_struct_ref(xml_attribute_struct* ref) : ref(ref) { }
+
+		operator bool() const {
+			return ref != NULL;
+		}
+
+		char_t*	name() const
+		{
+			return ref->name;
+		}
+
+		char_t*	value() const
+		{
+			return ref->value;
+		}
+
+		xml_attribute_struct_ref prev_attribute_c() const
+		{
+			return xml_attribute_struct_ref(ref->prev_attribute_c);
+		}
+
+		xml_attribute_struct_ref next_attribute() const
+		{
+			return xml_attribute_struct_ref(ref->next_attribute);
+		}
+
+	private:
+		xml_attribute_struct* ref;
+	};
+
+	class xml_node_struct_ref {
+	public:
+		xml_node_struct_ref(xml_node_struct* ref) : ref(ref) { }
+
+		static xml_node_struct_ref null() {
+			return xml_node_struct_ref(static_cast<xml_node_struct *>(0));
+		}
+
+		operator bool() const {
+			return ref != NULL;
+		}
+
+		xml_node_type type() const {
+			return ref->type;
+		}
+
+		char_t* name() const {
+			return ref->name;
+		}
+
+		char_t* value() const {
+			return ref->value;
+		}
+
+		xml_node_struct_ref parent() const {
+			return xml_node_struct_ref(ref->parent);
+		}
+
+		xml_node_struct_ref first_child() const {
+			return xml_node_struct_ref(ref->first_child);
+		}
+
+		xml_node_struct_ref prev_sibling_c() const {
+			return xml_node_struct_ref(ref->prev_sibling_c);
+		}
+
+		xml_node_struct_ref next_sibling() const {
+			return xml_node_struct_ref(ref->next_sibling);
+		}
+
+		xml_attribute_struct_ref first_attribute() const {
+			return xml_attribute_struct_ref(ref->first_attribute);
+		}
+
+		xml_node_struct_ref root() const {
+			return xml_node_struct_ref(ref->root);
+		}
+
+	private:
+		xml_node_struct* ref;
+	};
+
 	// A light-weight handle for manipulating attributes in DOM tree
 	class PUGIXML_CLASS xml_attribute
 	{
@@ -322,7 +441,7 @@ namespace pugi
 		friend class xml_node;
 
 	private:
-		xml_attribute_struct* _attr;
+		xml_attribute_struct_ref _attr;
 
 		typedef void (*unspecified_bool_type)(xml_attribute***);
 
@@ -331,7 +450,7 @@ namespace pugi
 		xml_attribute();
 
 		// Constructs attribute from internal pointer
-		explicit xml_attribute(xml_attribute_struct* attr);
+		explicit xml_attribute(xml_attribute_struct_ref attr);
 
 		// Safe bool conversion operator
 		operator unspecified_bool_type() const;
@@ -375,11 +494,8 @@ namespace pugi
 		xml_attribute next_attribute() const;
 		xml_attribute previous_attribute() const;
 
-		// Get hash value (unique for handles to the same object)
-		size_t hash_value() const;
-
 		// Get internal pointer
-		xml_attribute_struct* internal_object() const;
+		xml_attribute_struct_ref internal_object() const;
 	};
 
 #ifdef __BORLANDC__
@@ -396,7 +512,7 @@ namespace pugi
 		friend class xml_named_node_iterator;
 
 	protected:
-		xml_node_struct* _root;
+		xml_node_struct_ref _root;
 
 		typedef void (*unspecified_bool_type)(xml_node***);
 
@@ -405,7 +521,7 @@ namespace pugi
 		xml_node();
 
 		// Constructs node from internal pointer
-		explicit xml_node(xml_node_struct* p);
+		explicit xml_node(xml_node_struct_ref p);
 
 		// Safe bool conversion operator
 		operator unspecified_bool_type() const;
@@ -571,11 +687,8 @@ namespace pugi
 		xml_object_range<xml_named_node_iterator> children(const char_t* name) const;
 		xml_object_range<xml_attribute_iterator> attributes() const;
 
-		// Get hash value (unique for handles to the same object)
-		size_t hash_value() const;
-
 		// Get internal pointer
-		xml_node_struct* internal_object() const;
+		xml_node_struct_ref internal_object() const;
 	};
 
 #ifdef __BORLANDC__
@@ -589,13 +702,13 @@ namespace pugi
 	{
 		friend class xml_node;
 
-		xml_node_struct* _root;
+		xml_node_struct_ref _root;
 
 		typedef void (*unspecified_bool_type)(xml_text***);
 
-		explicit xml_text(xml_node_struct* root);
+		explicit xml_text(xml_node_struct_ref root);
 
-		xml_node_struct* _data() const;
+		xml_node_struct_ref _data() const;
 
 	public:
 		// Default constructor. Constructs an empty object.
@@ -649,7 +762,7 @@ namespace pugi
 		mutable xml_node _wrap;
 		xml_node _parent;
 
-		xml_node_iterator(xml_node_struct* ref, xml_node_struct* parent);
+		xml_node_iterator(xml_node_struct_ref ref, xml_node_struct_ref parent);
 
 	public:
 		// Iterator traits
@@ -691,7 +804,7 @@ namespace pugi
 		mutable xml_attribute _wrap;
 		xml_node _parent;
 
-		xml_attribute_iterator(xml_attribute_struct* ref, xml_node_struct* parent);
+		xml_attribute_iterator(xml_attribute_struct_ref ref, xml_node_struct_ref parent);
 
 	public:
 		// Iterator traits
@@ -764,7 +877,7 @@ namespace pugi
 		xml_node _parent;
 		const char_t* _name;
 
-		xml_named_node_iterator(xml_node_struct* ref, xml_node_struct* parent, const char_t* name);
+		xml_named_node_iterator(xml_node_struct_ref ref, xml_node_struct_ref parent, const char_t* name);
 	};
 
 	// Abstract tree walker class (see xml_node::traverse)
@@ -846,8 +959,6 @@ namespace pugi
 	class PUGIXML_CLASS xml_document: public xml_node
 	{
 	private:
-		char_t* _buffer;
-
 		char _memory[192];
 
 	public:
@@ -856,6 +967,9 @@ namespace pugi
 
 		// Destructor, invalidates all node/attribute handles to this document
 		~xml_document();
+
+		// Constructs node from internal pointer
+		explicit xml_document(xml_node_struct_ref p);
 
 		// Save XML document to writer (semantics is slightly different from xml_node::print, see documentation for details).
 		void save(xml_writer& writer, const char_t* indent = PUGIXML_TEXT("\t"), unsigned int flags = format_default, xml_encoding encoding = encoding_auto) const;
