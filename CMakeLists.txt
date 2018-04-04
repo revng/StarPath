@@ -6,6 +6,12 @@ option(BUILD_SHARED_LIBS "Build shared instead of static library" OFF)
 option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_PKGCONFIG "Build in PKGCONFIG mode" OFF)
 
+find_package(LLVM REQUIRED CONFIG)
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti -DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING=OFF")
+llvm_map_components_to_libnames(llvm_libs support core irreader)
+
 set(BUILD_DEFINES "" CACHE STRING "Build defines")
 
 if(MSVC)
@@ -51,6 +57,7 @@ endif()
 # get_target_property(PUGIXML_VERSION_STRING pugixml VERSION)
 
 add_executable(main src/main.c ${SOURCES})
+target_link_libraries(main ${llvm_libs})
 
 if(BUILD_PKGCONFIG)
 	# Install library into its own directory under LIBDIR

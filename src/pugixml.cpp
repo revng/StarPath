@@ -173,6 +173,35 @@ namespace pugi
 #	include <stdint.h>
 #endif
 
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/Support/SourceMgr.h"
+
+int main(int argc, char *argv[])  {
+  // assert(argc == 3);
+
+  llvm::LLVMContext C;
+  llvm::SMDiagnostic Err;
+  std::unique_ptr<llvm::Module> M = llvm::parseIRFile(argv[2], Err, C);
+  pugi::xml_node_struct_ref Node(M.get());
+  pugi::xml_document Lel(Node);
+  Lel.save_file("/dev/stdout");
+
+  // pugi::xml_node_struct NodeStruct(pugi::node_document);
+  // pugi::xml_node_struct_ref Node = pugi::xml_node_struct_ref::null();
+
+  pugi::xpath_variable_set variables;
+  pugi::xpath_query q(argv[1], &variables);
+  pugi::char_t result[255];
+  // size_t size = q.evaluate_string(result, 255, pugi::xml_node(Node));
+  // if (size)
+  //   printf("%s\n", result);
+
+  pugi::xpath_node_set Result = q.evaluate_node_set(pugi::xml_node(Node));
+  for (pugi::xpath_node_set::const_iterator It = Result.begin(); It !=  Result.end(); It++)
+		It->node().internal_object();
+
+}
+
 // Memory allocation
 PUGI__NS_BEGIN
 	PUGI__FN void* default_allocate(size_t size)
