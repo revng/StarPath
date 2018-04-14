@@ -175,31 +175,83 @@ namespace pugi
 
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/SourceMgr.h"
+#include <iostream>
 
 int main(int argc, char *argv[])  {
-  // assert(argc == 3);
+  const char *XPathQuery = nullptr;
+  const char *ModulePath = nullptr;
+
+  switch (argc) {
+  case 2:
+    ModulePath = argv[1];
+    break;
+
+  case 3:
+    XPathQuery = argv[1];
+    ModulePath = argv[2];
+    break;
+
+  default:
+    std::cerr << "Usage: " << argv[0] << " [XPATH_QUERY] LLVM_MODULE\n";
+    return 0;
+  }
 
   llvm::LLVMContext C;
   llvm::SMDiagnostic Err;
-  std::unique_ptr<llvm::Module> M = llvm::parseIRFile(argv[2], Err, C);
-  pugi::xml_node_struct_ref Node(M.get());
-  pugi::xml_document Lel(Node);
-  Lel.save_file("/dev/stdout");
+  std::unique_ptr<llvm::Module> TheModule = llvm::parseIRFile(ModulePath, Err, C);
 
-  // pugi::xml_node_struct NodeStruct(pugi::node_document);
-  // pugi::xml_node_struct_ref Node = pugi::xml_node_struct_ref::null();
+  if (TheModule.get() == nullptr) {
+    std::cerr << "Couldn't parse the input module.\n";
+    return 0;
+  }
 
-  pugi::xpath_variable_set variables;
-  pugi::xpath_query q(argv[1], &variables);
-  pugi::char_t result[255];
-  // size_t size = q.evaluate_string(result, 255, pugi::xml_node(Node));
-  // if (size)
-  //   printf("%s\n", result);
+  pugi::xml_node_struct_ref RootNode(TheModule.get());
 
-  pugi::xpath_node_set Result = q.evaluate_node_set(pugi::xml_node(Node));
-  for (pugi::xpath_node_set::const_iterator It = Result.begin(); It !=  Result.end(); It++)
-		It->node().internal_object();
+  // In case no XPath query has been provided, simply print out the XML tree
+  if (XPathQuery == nullptr) {
+    pugi::xml_document TheDocument(RootNode);
+    TheDocument.save_file("/dev/stdout");
+    return 0;
+  }
 
+  // Perform the actual XML query
+  pugi::xpath_variable_set Variables;
+  pugi::xpath_query Query(argv[1], &Variables);
+
+  switch (Query.return_type()) {
+  case pugi::xpath_type_none:
+    break;
+
+  case pugi::xpath_type_node_set: {
+    std::cerr << "Return type: nodeset\n";
+    pugi::xpath_node_set NodeSet = Query.evaluate_node_set(pugi::xml_node(RootNode));
+    llvm::raw_os_ostream Stdout(std::cout);
+    unsigned Count = 0;
+    for (auto &Node : NodeSet) {
+      Stdout << "Result " << ++Count << ":\n";
+      Node.node().internal_object().dump(Stdout);
+      Stdout << "\n";
+    }
+  } break;
+
+  case pugi::xpath_type_number:
+    std::cerr << "Return type: number\n";
+    std::cout << Query.evaluate_number(pugi::xml_node(RootNode)) << "\n";
+    break;
+
+  case pugi::xpath_type_string:
+    std::cerr << "Return type: string\n";
+    std::cout << Query.evaluate_string(pugi::xml_node(RootNode)) << "\n";
+    break;
+
+  case pugi::xpath_type_boolean:
+    std::cerr << "Return type: boolean\n";
+    std::cout << (Query.evaluate_boolean(pugi::xml_node(RootNode)) ? "true" : "false") << "\n";
+    break;
+
+  }
+
+  return 0;
 }
 
 // Memory allocation

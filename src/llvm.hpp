@@ -2,7 +2,7 @@
 #include <cmath>
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/raw_os_ostream.h"
 
 // Module
 //   @name : string
@@ -213,22 +213,20 @@ namespace pugi
         return !(*this == Other);
       }
 
-      void dump() {
+      void dump(llvm::raw_os_ostream &Output) {
         switch (T) {
         case Module:
+          getModule()->print(Output, nullptr, false, true);
           break;
         case Value:
-          if (auto *I = llvm::dyn_cast<llvm::Instruction>(getValue())) {
-            I->dump();
-          } else if (auto *BB = llvm::dyn_cast<llvm::BasicBlock>(getValue())) {
-            BB->dump();
-          } else if (auto *F = llvm::dyn_cast<llvm::Function>(getValue())) {
-            F->dump();
-          }
-
+          getValue()->print(Output, true);
           break;
         case Use:
-          getUse()->getUser()->dump();
+          llvm::Use *TheUse = getUse();
+          Output << "Use " << TheUse->getOperandNo() << " of ";
+          getUse()->getUser()->print(Output, true);
+          Output << ": ";
+          getUse()->get()->print(Output, true);
         }
       }
 
